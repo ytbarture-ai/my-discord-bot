@@ -12,27 +12,19 @@ async function runAutomod(message) {
   if (!message.guild || message.author.bot) return false;
   if (!message.member) return false;
 
-  // Skip if member has Manage Messages permission (mods bypass automod)
+  // Moderators bypass automod
   if (message.member.permissions.has('ManageMessages')) return false;
 
   const cfg = getAutomodConfig(message.guild.id);
 
-  // 1. Anti-spam
   if (cfg.anti_spam) {
-    const acted = await checkSpam(message, cfg);
-    if (acted) return true;
+    if (await checkSpam(message, cfg)) return true;
   }
-
-  // 2. Anti-link (Discord invites)
   if (cfg.anti_link) {
-    const acted = await checkLinks(message, cfg);
-    if (acted) return true;
+    if (await checkLinks(message, cfg)) return true;
   }
-
-  // 3. Anti-caps
   if (cfg.anti_caps) {
-    const acted = await checkCaps(message, cfg);
-    if (acted) return true;
+    if (await checkCaps(message, cfg)) return true;
   }
 
   return false;
@@ -52,16 +44,16 @@ async function checkSpam(message, cfg) {
     spamTracker.delete(key);
     try {
       await message.delete().catch(() => {});
-      await message.member.timeout(60_000, 'Automod: spam detected').catch(() => {});
+      await message.member.timeout(60_000, 'Automod: spam').catch(() => {});
       const warn = await message.channel.send({
-        content: `⚠️ ${message.author}, you have been muted for **1 minute** for spamming.`,
+        content: `⚠️ ${message.author}, mute **1 minute** pour spam.`,
       });
       setTimeout(() => warn.delete().catch(() => {}), 8000);
       await sendModLog(message.guild, cfg, {
         title: '🚫 Automod — Anti-Spam',
         user: message.author,
-        reason: `Sent ${threshold}+ messages in ${window / 1000}s`,
-        action: 'Timeout (1 min)',
+        reason: `${threshold}+ messages en ${window / 1000}s`,
+        action: 'Timeout 1 min',
         color: 0xE74C3C,
       });
     } catch {}
@@ -76,16 +68,16 @@ async function checkLinks(message, cfg) {
 
   try {
     await message.delete().catch(() => {});
-    addWarning(message.author.id, message.guild.id, message.client.user.id, 'Automod: posted Discord invite link');
+    addWarning(message.author.id, message.guild.id, message.client.user.id, 'Automod: lien Discord');
     const warn = await message.channel.send({
-      content: `⚠️ ${message.author}, Discord invite links are not allowed here!`,
+      content: `⚠️ ${message.author}, les liens d'invitation Discord ne sont pas autorisés!`,
     });
     setTimeout(() => warn.delete().catch(() => {}), 8000);
     await sendModLog(message.guild, cfg, {
       title: '🔗 Automod — Anti-Link',
       user: message.author,
-      reason: 'Posted a Discord invite link',
-      action: 'Message deleted + warning added',
+      reason: 'Lien d\'invitation Discord posté',
+      action: 'Message supprimé + avertissement',
       color: 0xE67E22,
     });
   } catch {}
@@ -98,44 +90,55 @@ async function checkCaps(message, cfg) {
 
   const upper = text.replace(/[^A-Z]/g, '').length;
   const pct = Math.round((upper / text.length) * 100);
-
   if (pct < (cfg.caps_pct || 70)) return false;
 
   try {
     await message.delete().catch(() => {});
     const warn = await message.channel.send({
-      content: `⚠️ ${message.author}, please avoid excessive CAPS (${pct}% uppercase).`,
+      content: `⚠️ ${message.author}, évite les MAJUSCULES excessives (${pct}%).`,
     });
     setTimeout(() => warn.delete().catch(() => {}), 8000);
     await sendModLog(message.guild, cfg, {
       title: '📢 Automod — Anti-Caps',
       user: message.author,
-      reason: `Message was ${pct}% uppercase`,
-      action: 'Message deleted',
+      reason: `${pct}% majuscules`,
+      action: 'Message supprimé',
       color: 0xF39C12,
     });
   } catch {}
   return true;
 }
 
-async function sendModLog(guild, cfg, { title, user, reason, action, color }) {
-  const channelId = cfg.log_channel || process.env.MOD_LOG_CHANNEL_ID;
-  if (!channelId) return;
+/**
+ * Find the mod log channel: uses DB config first,
+ * then auto-detects a channel named "mod-logs" or "zeeplin-logs".
+ */
+async function findLogChannel(guild, cfg) {
+  if (cfg.log_channel) {
+    const ch = guild.channels.cache.get(cfg.log_channel);
+    if (ch) return ch;
+  }
+  // Auto-detect by name
+  return guild.channels.cache.find(c =>
+    c.isTextBased() && ['mod-logs', 'zeeplin-logs', 'logs', 'modlogs'].includes(c.name.toLowerCase())
+  ) || null;
+}
 
-  const channel = guild.channels.cache.get(channelId);
+async function sendModLog(guild, cfg, { title, user, reason, action, color }) {
+  const channel = await findLogChannel(guild, cfg);
   if (!channel) return;
 
   const embed = new EmbedBuilder()
     .setColor(color)
     .setTitle(title)
     .addFields(
-      { name: '👤 User', value: `${user.tag} (${user.id})`, inline: true },
+      { name: '👤 Utilisateur', value: `${user.tag} (${user.id})`, inline: true },
       { name: '⚡ Action', value: action, inline: true },
-      { name: '📋 Reason', value: reason, inline: false },
+      { name: '📋 Raison', value: reason, inline: false },
     )
     .setTimestamp();
 
   channel.send({ embeds: [embed] }).catch(() => {});
 }
 
-module.exports = { runAutomod, sendModLog };
+module.exports = { runAutomod, sendModLog, findLogChannel };
