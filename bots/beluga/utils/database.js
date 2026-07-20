@@ -1,43 +1,42 @@
-const Database = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
 const dataDir = path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-const db = new Database(path.join(dataDir, 'beluga.db'));
+const db = new DatabaseSync(path.join(dataDir, 'beluga.db'));
 
-// Enable WAL for better concurrency
-db.pragma('journal_mode = WAL');
+db.exec(`PRAGMA journal_mode = WAL`);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS economy (
-    user_id     TEXT NOT NULL,
-    guild_id    TEXT NOT NULL,
-    balance     INTEGER DEFAULT 0,
+    user_id       TEXT NOT NULL,
+    guild_id      TEXT NOT NULL,
+    balance       INTEGER DEFAULT 0,
     work_cooldown INTEGER DEFAULT 0,
     PRIMARY KEY (user_id, guild_id)
   );
 
   CREATE TABLE IF NOT EXISTS levels (
-    user_id     TEXT NOT NULL,
-    guild_id    TEXT NOT NULL,
-    xp          INTEGER DEFAULT 0,
-    level       INTEGER DEFAULT 0,
-    xp_cooldown INTEGER DEFAULT 0,
+    user_id       TEXT NOT NULL,
+    guild_id      TEXT NOT NULL,
+    xp            INTEGER DEFAULT 0,
+    level         INTEGER DEFAULT 0,
+    xp_cooldown   INTEGER DEFAULT 0,
     PRIMARY KEY (user_id, guild_id)
   );
 
   CREATE TABLE IF NOT EXISTS inventory (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id     TEXT NOT NULL,
-    guild_id    TEXT NOT NULL,
-    item_id     TEXT NOT NULL,
-    purchased_at INTEGER DEFAULT 0
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       TEXT NOT NULL,
+    guild_id      TEXT NOT NULL,
+    item_id       TEXT NOT NULL,
+    purchased_at  INTEGER DEFAULT 0
   );
 `);
 
-// ─── Economy helpers ──────────────────────────────────────────────────────────
+// ─── Economy ──────────────────────────────────────────────────────────────────
 
 function getEconomy(userId, guildId) {
   let row = db.prepare('SELECT * FROM economy WHERE user_id = ? AND guild_id = ?').get(userId, guildId);
@@ -49,27 +48,19 @@ function getEconomy(userId, guildId) {
 }
 
 function addBalance(userId, guildId, amount) {
-  db.prepare(`
-    INSERT INTO economy (user_id, guild_id, balance) VALUES (?, ?, ?)
-    ON CONFLICT(user_id, guild_id) DO UPDATE SET balance = balance + excluded.balance
-  `).run(userId, guildId, amount);
+  getEconomy(userId, guildId); // ensure row exists
+  db.prepare(`UPDATE economy SET balance = balance + ? WHERE user_id = ? AND guild_id = ?`).run(amount, userId, guildId);
 }
 
 function setWorkCooldown(userId, guildId, timestamp) {
-  db.prepare('UPDATE economy SET work_cooldown = ? WHERE user_id = ? AND guild_id = ?')
-    .run(timestamp, userId, guildId);
+  db.prepare('UPDATE economy SET work_cooldown = ? WHERE user_id = ? AND guild_id = ?').run(timestamp, userId, guildId);
 }
 
 function getEconomyLeaderboard(guildId, limit = 10) {
-  return db.prepare(`
-    SELECT user_id, balance FROM economy
-    WHERE guild_id = ?
-    ORDER BY balance DESC
-    LIMIT ?
-  `).all(guildId, limit);
+  return db.prepare(`SELECT user_id, balance FROM economy WHERE guild_id = ? ORDER BY balance DESC LIMIT ?`).all(guildId, limit);
 }
 
-// ─── Levels helpers ───────────────────────────────────────────────────────────
+// ─── Levels ───────────────────────────────────────────────────────────────────
 
 function getLevels(userId, guildId) {
   let row = db.prepare('SELECT * FROM levels WHERE user_id = ? AND guild_id = ?').get(userId, guildId);
@@ -85,58 +76,40 @@ function addXP(userId, guildId, amount) {
   const newXP = data.xp + amount;
   const newLevel = calcLevel(newXP);
   const leveledUp = newLevel > data.level;
-
-  db.prepare(`
-    UPDATE levels SET xp = ?, level = ? WHERE user_id = ? AND guild_id = ?
-  `).run(newXP, newLevel, userId, guildId);
-
+  db.prepare(`UPDATE levels SET xp = ?, level = ? WHERE user_id = ? AND guild_id = ?`).run(newXP, newLevel, userId, guildId);
   return { leveledUp, newLevel, newXP };
 }
 
 function setXPCooldown(userId, guildId, timestamp) {
-  db.prepare('UPDATE levels SET xp_cooldown = ? WHERE user_id = ? AND guild_id = ?')
-    .run(timestamp, userId, guildId);
+  db.prepare('UPDATE levels SET xp_cooldown = ? WHERE user_id = ? AND guild_id = ?').run(timestamp, userId, guildId);
 }
 
 function getLevelsLeaderboard(guildId, limit = 10) {
-  return db.prepare(`
-    SELECT user_id, xp, level FROM levels
-    WHERE guild_id = ?
-    ORDER BY xp DESC
-    LIMIT ?
-  `).all(guildId, limit);
+  return db.prepare(`SELECT user_id, xp, level FROM levels WHERE guild_id = ? ORDER BY xp DESC LIMIT ?`).all(guildId, limit);
 }
 
 // ─── Level math ───────────────────────────────────────────────────────────────
 
-/** Total XP needed to reach a given level */
 function xpToLevel(level) {
   let total = 0;
   for (let i = 0; i < level; i++) total += 5 * i * i + 50 * i + 100;
   return total;
 }
 
-/** Calculate level from total XP */
 function calcLevel(xp) {
   let level = 0;
   while (xp >= xpToLevel(level + 1)) level++;
   return level;
 }
 
-/** XP needed for the NEXT level */
-function xpForNext(level) {
-  return 5 * level * level + 50 * level + 100;
-}
-
-// ─── Inventory helpers ────────────────────────────────────────────────────────
+// ─── Inventory ────────────────────────────────────────────────────────────────
 
 function getInventory(userId, guildId) {
   return db.prepare('SELECT * FROM inventory WHERE user_id = ? AND guild_id = ?').all(userId, guildId);
 }
 
 function addItem(userId, guildId, itemId) {
-  db.prepare('INSERT INTO inventory (user_id, guild_id, item_id, purchased_at) VALUES (?, ?, ?, ?)')
-    .run(userId, guildId, itemId, Date.now());
+  db.prepare('INSERT INTO inventory (user_id, guild_id, item_id, purchased_at) VALUES (?, ?, ?, ?)').run(userId, guildId, itemId, Date.now());
 }
 
 // ─── Data deletion ────────────────────────────────────────────────────────────
@@ -151,7 +124,7 @@ module.exports = {
   db,
   getEconomy, addBalance, setWorkCooldown, getEconomyLeaderboard,
   getLevels, addXP, setXPCooldown, getLevelsLeaderboard,
-  calcLevel, xpToLevel, xpForNext,
+  calcLevel, xpToLevel,
   getInventory, addItem,
   deleteUserData,
 };
