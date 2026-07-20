@@ -1,136 +1,109 @@
 # 🤖 Discord Bots — BeluGANG
 
-Two Discord bots for the BeluGANG community, ready to deploy on [Railway](https://railway.app).
+Deux bots Discord prêts pour [Railway](https://railway.app).
 
 ---
 
-## 🐳 Beluga Bot — Events & Economy
+## 🐳 Beluga Bot — Événements & Économie
 
-An events and economy bot for BeluGANG.
+### Fonctionnalités
+- 💸 Système **BeluBucks** (monnaie)
+- ⭐ **XP & niveaux** par message (cooldown 60s)
+- 🛒 **Shop** avec items achetables
+- 🏆 **Classements** XP et BeluBucks
 
-### Features
-- 💸 **BeluBucks** economy system
-- ⭐ **XP & leveling** from chatting (15–25 XP/message, 60s cooldown)
-- 🛒 **Shop** with purchasable items
-- 🏆 **Leaderboards** (XP and BBs)
-
-### Slash Commands
-| Command | Description |
-|---------|-------------|
-| `/balance [user]` | Check your BeluBucks balance |
-| `/work` | Earn 50–200 BBs (1h cooldown) |
-| `/rank [user]` | View XP rank with progress bar |
-| `/level` | Show your current level |
-| `/leaderboard [type]` | Top 10 by XP or BeluBucks |
-| `/shop [buy]` | Browse or buy items |
-| `/info` | Bot information |
-| `/data-delete` | Permanently delete your data |
-
-### Setup
-```bash
-cd bots/beluga
-npm install
-cp .env.example .env
-# Fill in .env with your tokens
-node deploy-commands.js   # Register slash commands
-node index.js             # Start the bot
-```
+### Commandes slash
+| Commande | Description |
+|----------|-------------|
+| `/balance [user]` | Solde BeluBucks |
+| `/work` | Gagner 50–200 BBs (cooldown 1h) |
+| `/rank [user]` | Rang XP avec barre de progression |
+| `/level` | Niveau actuel |
+| `/leaderboard [type]` | Top 10 XP ou BeluBucks |
+| `/shop [buy]` | Voir ou acheter des items |
+| `/info` | Infos du bot |
+| `/data-delete` | Supprimer ses données |
 
 ---
 
-## 🚁 Zeeplin Bot — Moderation & Automod
+## 🚁 Zeeplin Bot — Modération & Automod
 
-A full-featured moderation bot with built-in automod.
+### Fonctionnalités
+- 🔨 **Modération** : ban, kick, timeout, warn
+- 🛡️ **Automod** : anti-spam, anti-lien, anti-caps
+- 📋 **Logs mod** : auto-détecté (`mod-logs`, `zeeplin-logs` ou `logs`)
+- 🚨 **Détection nouveaux comptes** (< 7 jours)
 
-### Features
-- 🔨 **Moderation**: ban, kick, timeout, warn system
-- 🛡️ **Automod**: anti-spam, anti-invite-link, anti-excessive-caps
-- 📋 **Mod logs**: all actions logged to a configurable channel
-- 🚨 **New account detection**: flags accounts under 7 days old
+### Commandes slash
+| Commande | Description |
+|----------|-------------|
+| `/ban <user> [reason]` | Bannir |
+| `/kick <user> [reason]` | Expulser |
+| `/timeout <user> <duration>` | Timeout |
+| `/warn <user> <reason>` | Avertir |
+| `/warnings <user>` | Voir les warns |
+| `/clearwarnings <user> [id]` | Supprimer des warns |
+| `/purge <amount> [user]` | Supprimer des messages |
+| `/userinfo [user]` | Infos utilisateur |
+| `/serverinfo` | Infos serveur |
+| `/automod <subcommande>` | Config automod |
 
-### Slash Commands
-| Command | Description |
-|---------|-------------|
-| `/ban <user> [reason] [delete_days]` | Ban a member |
-| `/kick <user> [reason]` | Kick a member |
-| `/timeout <user> <duration> [reason]` | Timeout a member |
-| `/warn <user> <reason>` | Warn a member |
-| `/warnings <user>` | View a member's warnings |
-| `/clearwarnings <user> [id]` | Clear warnings |
-| `/purge <amount> [user]` | Bulk delete messages |
-| `/userinfo [user]` | View user information |
-| `/serverinfo` | View server information |
-| `/automod <subcommand>` | Configure automod |
-
-### Automod Config (`/automod`)
-- `/automod status` — Show current settings
-- `/automod antispam <enabled>` — Toggle anti-spam (5 msgs in 5s → 1 min timeout)
-- `/automod antilink <enabled>` — Toggle Discord invite link blocking
-- `/automod anticaps <enabled>` — Toggle anti-caps (>70% uppercase)
-- `/automod logchannel <channel>` — Set mod log channel
-- `/automod spamthreshold <messages>` — Adjust spam threshold
-
-### Setup
-```bash
-cd bots/zeeplin
-npm install
-cp .env.example .env
-# Fill in .env
-node deploy-commands.js
-node index.js
-```
+### Config Automod (`/automod`)
+- `/automod status` — État actuel
+- `/automod antispam <on/off>` — Anti-spam (5 msgs/5s → timeout 1 min)
+- `/automod antilink <on/off>` — Bloquer les liens d'invitation Discord
+- `/automod anticaps <on/off>` — Anti-caps (>70% majuscules)
+- `/automod logchannel <channel>` — Choisir le salon de logs
+- `/automod spamthreshold <n>` — Seuil anti-spam
 
 ---
 
-## 🚂 Deploy on Railway
+## 🚂 Déploiement Railway
 
-Each bot is a **separate Railway service** pointing to its subdirectory.
+Chaque bot = **un service Railway séparé** pointant vers son sous-dossier.
 
-### Steps
+### Étapes
 
-1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
-2. Select this repository
-3. Click **Add Service** → **GitHub Repo** again for the second bot
-4. For each service, in **Settings → Source**:
-   - **Root Directory**: `bots/beluga` (or `bots/zeeplin`)
-5. Add environment variables in **Variables** tab:
+1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
+2. Sélectionner ce dépôt → Railway crée un premier service
+3. **Add Service** → **GitHub Repo** → même dépôt → second service
+4. Pour **chaque service**, aller dans **Settings → Source** :
+   - **Root Directory** : `bots/beluga` ou `bots/zeeplin`
+5. **Variables** (onglet Variables) :
 
-**Beluga service:**
+**Service Beluga :**
 ```
-BELUGA_TOKEN=your_token
-BELUGA_CLIENT_ID=your_client_id
-GUILD_ID=your_guild_id         # optional, for instant command registration
+BELUGA_TOKEN=ton_token
 ```
 
-**Zeeplin service:**
+**Service Zeeplin :**
 ```
-ZEEPLIN_TOKEN=your_token
-ZEEPLIN_CLIENT_ID=your_client_id
-GUILD_ID=your_guild_id
-MOD_LOG_CHANNEL_ID=your_channel_id
+ZEEPLIN_TOKEN=ton_token
 ```
 
-6. Each service auto-detects `railway.toml` and runs `node index.js`
-7. Add a **Railway Volume** at `/app/bots/beluga/data` (and zeeplin) for database persistence across deploys
+> C'est tout — aucune autre variable requise.
 
-### Register Commands on Railway
-After deploying, open a Railway shell and run:
+6. Railway détecte automatiquement `railway.toml` et lance `node index.js`
+7. Pour la persistance de la base de données, ajouter un **Volume Railway** monté sur `/app/data`
+
+### Enregistrer les commandes slash
+
+Après le premier déploiement, ouvrir un shell Railway et lancer :
 ```bash
 node deploy-commands.js
 ```
+Les commandes apparaissent globalement sur Discord en ~1h.
 
 ---
 
-## 📂 Project Structure
+## 📂 Structure
 
 ```
 bots/
 ├── beluga/
-│   ├── commands/       # Slash commands
-│   ├── events/         # Discord event handlers
-│   ├── utils/
-│   │   └── database.js # SQLite helpers (better-sqlite3)
-│   ├── data/           # Auto-created — SQLite DB stored here
+│   ├── commands/          # Commandes slash
+│   ├── events/            # Événements Discord
+│   ├── utils/database.js  # SQLite (node:sqlite intégré Node.js)
 │   ├── index.js
 │   ├── deploy-commands.js
 │   └── railway.toml
@@ -140,7 +113,6 @@ bots/
     ├── utils/
     │   ├── database.js
     │   └── automod.js
-    ├── data/
     ├── index.js
     ├── deploy-commands.js
     └── railway.toml
@@ -148,6 +120,6 @@ bots/
 
 ---
 
-## ❓ Questions / Feedback
+## ❓ Contact
 
-DM **@Trizoux_Nora** on Discord.
+DM **@Trizoux_Nora** sur Discord.
